@@ -17,6 +17,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from win10toast import ToastNotifier
 import cv2
+from bs4 import BeautifulSoup
 
 
 # Load English language model
@@ -286,6 +287,36 @@ def set_alarm():
         print("Invalid input. Please enter a valid minute (0-59).")
         minute = int(input("At what minute do you want to set the alarm? Enter minute (0-59): "))
         
+        
+        
+def track_amazon_price(url):
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"}
+    response = requests.get(url, headers=headers)
+    
+    if response.status_code == 200:
+        soup = BeautifulSoup(response.content, 'html.parser')
+        title = soup.find(id='productTitle').get_text().strip()
+        price = soup.find(id='priceblock_ourprice').get_text().strip()  # Adjust this based on the actual HTML structure
+        return title, price
+    else:
+        print("Failed to fetch Amazon page:", response.status_code)
+        return None, None
+    
+    
+    
+    
+def get_product_price():
+    speak("Sure, please provide the Amazon URL of the product.")
+    url = input("Enter Amazon product URL: ")  # You can modify this to use voice input
+    product_title, product_price = track_amazon_price(url)
+    if product_title and product_price:
+        speak(f"The price of {product_title} is {product_price}")
+    else:
+        speak("Sorry, I couldn't fetch the price of the product.")
+
+
+
 
         
         
@@ -366,7 +397,7 @@ if __name__ == "__main__":
                 alarm_thread = threading.Thread(target=set_alarm)
                 alarm_thread.start()
 
-            elif 'fitness info' in query:
+            elif 'fitness info' in query: 
                 get_fitness_info()
 
             elif 'crypto price' in query:
@@ -447,7 +478,12 @@ if __name__ == "__main__":
                     engine.setProperty('voice', voices[1].id)
                 else:
                     engine.setProperty('voice', voices[0].id)
-
+            
+            elif 'product price' in query:
+                get_product_price()
+                speak("Here is the product price")
+                speak(product_price)
+          
             elif 'exit' in query:
                 speak("Exiting, boss. Goodbye!")
                 break  # Correct place for the break statement
