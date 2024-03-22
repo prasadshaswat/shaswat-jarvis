@@ -18,6 +18,9 @@ from email.mime.text import MIMEText
 from win10toast import ToastNotifier
 import cv2
 from bs4 import BeautifulSoup
+import ctypes
+import math
+
 
 
 # Load English language model
@@ -124,6 +127,68 @@ def generate_meme(template_id, username, password, text0, text1):
         return None
 
 
+
+def gesture_control():
+    cap = cv2.VideoCapture(0)
+    while True:
+        ret, frame = cap.read()
+        frame = cv2.flip(frame, 1)
+        if not ret:
+            break
+
+        # Convert frame to grayscale
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+        # Apply Gaussian blur
+        gray_blur = cv2.GaussianBlur(gray, (15, 15), 0)
+
+        # Threshold the image to get binary image
+        _, binary = cv2.threshold(gray_blur, 127, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+
+        # Find contours
+        contours, hierarchy = cv2.findContours(binary, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        if len(contours) > 0:
+            max_contour = max(contours, key=cv2.contourArea)
+            epsilon = 0.0005 * cv2.arcLength(max_contour, True)
+            approx = cv2.approxPolyDP(max_contour, epsilon, True)
+            hull = cv2.convexHull(max_contour)
+
+            cv2.drawContours(frame, [hull], 0, (0, 255, 0), 2)
+
+            # Calculate the center of the palm
+            M = cv2.moments(max_contour)
+            if M["m00"] != 0:
+                cX = int(M["m10"] / M["m00"])
+                cY = int(M["m01"] / M["m00"])
+                cv2.circle(frame, (cX, cY), 7, (255, 255, 255), -1)
+
+                # Calculate the angle of the hand
+                angle = math.atan2(approx[0][0][1] - approx[2][0][1], approx[0][0][0] - approx[2][0][0])
+                angle = angle * 180 / math.pi
+
+                # Volume Up gesture
+                if 60 < abs(angle) < 120:
+                    ctypes.windll.user32.keybd_event(0xAF, 0, 0, 0)  # Volume Up key code
+                    cv2.putText(frame, "VOL UP", (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+
+                # Volume Down gesture
+                elif abs(angle) > 150:
+                    ctypes.windll.user32.keybd_event(0xAE, 0, 0, 0)  # Volume Down key code
+                    cv2.putText(frame, "VOL DOWN", (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+
+        cv2.imshow("Gesture Control", frame)
+
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+    cap.release()
+    cv2.destroyAllWindows()
+
+
+
+    
+    
+    
 
 def tell_joke():
     jokes = [
@@ -483,7 +548,17 @@ if __name__ == "__main__":
                 get_product_price()
                 speak("Here is the product price")
                 speak(product_price)
-          
+                
+                
+            elif 'volume control' in query:
+                gesture_control()
+                speak("Gesture control ended")
+                
+            elif 'face ' in query:
+                detect_face()
+                speak("Face detected")
+                
+        
             elif 'exit' in query:
                 speak("Exiting, boss. Goodbye!")
                 break  # Correct place for the break statement
