@@ -9,10 +9,51 @@ import time
 import pywhatkit
 import threading  
 import requests
+import geocoder
+import spacy
+import win10toast
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from win10toast import ToastNotifier
+import cv2
+
+
+# Load English language model
+nlp = spacy.load("en_core_web_sm")
+
 
 engine = pyttsx3.init('sapi5')
 voices = engine.getProperty('voices')
 engine.setProperty('voice', voices[0].id)
+
+
+face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+
+def detect_face():
+    cap = cv2.VideoCapture(0)  # Use 0 for the primary camera
+    while True:
+        _, img = cap.read()
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        faces = face_cascade.detectMultiScale(gray, 1.1, 4)
+
+        if len(faces) > 0:
+            print("Face Detected")
+            cap.release()
+            cv2.destroyAllWindows()
+            return True
+        else:
+            print("No face detected. Retrying...")
+
+        cv2.imshow('img', img)
+        
+        if cv2.waitKey(30) & 0xFF == ord('q'):
+            break
+
+    cap.release()
+    cv2.destroyAllWindows()
+    return False
+
 
 
 def speak(audio):
@@ -54,6 +95,34 @@ def take_command():
         return "None"
     return query
 
+def good_night():
+    speak("Good night boss. Have a nice sleep!")
+    time.sleep(4)
+    os.system("shutdown /s /t 5")
+    
+
+
+def generate_meme(template_id, username, password, text0, text1):
+    url = 'https://api.imgflip.com/caption_image'
+    params = {
+        'template_id': '129242436',
+        'username': 'PrasadShaswat',
+        'password': '8V!EX7uzHF8vHYg',
+        'text0': text0,
+        'text1': text1
+    }
+    response = requests.post(url, params=params)
+    if response.status_code == 200:
+        data = response.json()
+        if data['success']:
+            return data['data']['url']
+        else:
+            return None
+    else:
+        print("Failed to generate meme. Status code:", response.status_code)
+        return None
+
+
 
 def tell_joke():
     jokes = [
@@ -67,6 +136,43 @@ def tell_joke():
     ]
     joke = random.choice(jokes)
     speak(joke)
+    
+def get_location():
+    # Get latitude and longitude
+    g = geocoder.ip('me')
+    lat_lng = g.latlng
+
+    # Get the address from latitude and longitude
+    location = geocoder.osm(lat_lng, method='reverse')
+    return location.address
+
+def add_work(work, time):
+    work_list[work] = time
+    speak(f"Work '{work}' added at {time}.")
+
+def remove_work(work):
+    if work in work_list:
+        del work_list[work]
+        speak(f"Work '{work}' removed from the to-do list.")
+    else:
+        speak(f"Work '{work}' not found in the to-do list.")
+
+def show_works():
+    if work_list:
+        speak("Here are the works in your to-do list:")
+        for work, time in work_list.items():
+            speak(f"{work} at {time}.")
+    else:
+        speak("Your to-do list is empty.")
+
+def manage_works():
+    current_time = datetime.datetime.now().strftime("%H:%M")
+    for work, time in work_list.items():
+        if time == current_time:
+            speak(f"It's time for {work}!")
+            # You can add further actions here, like opening a webpage or playing music
+            # Example: webbrowser.open("https://www.example.com")
+            del work_list[work]  # Remove work once it's done
 
 
 def get_exercise_info(exercise_name, muscle):
@@ -118,6 +224,55 @@ def send_whatsapp_message():
     minute = int(input("Enter minute: "))
     pywhatkit.sendwhatmsg(recipient, message, hour, minute)
     speak("Message sent successfully!")
+    
+
+
+
+def get_celebrity_info(name):
+    api_url = f'https://api.api-ninjas.com/v1/celebrity?name={name}'
+    api_key = 'mNN8t82cBmE5rTEkCqKnjw==Da8gfu4h5CawPWzO'
+    response = requests.get(api_url, headers={'X-Api-Key': api_key})
+    if response.status_code == requests.codes.ok:
+        return response.json()
+    else:
+        return None
+    
+def send_email(recipient, subject, body):
+    # Email configuration (replace with your SMTP server details)
+    smtp_server = 'smtp.gmail.com'
+    smtp_port = 587  # For example, 587 for TLS
+    sender_email = 'hbvgsjhf@gmail.com'
+    sender_password = 'shaswat2031'
+    
+    # Create a multipart message and set headers
+    message = MIMEMultipart()
+    message['From'] = sender_email
+    message['To'] = recipient
+    message['Subject'] = subject
+    
+    # Add body to email
+    message.attach(MIMEText(body, 'plain'))
+    
+    # Connect to SMTP server and send email
+    with smtplib.SMTP(smtp_server, smtp_port) as server:
+        server.starttls()
+        server.login(sender_email, sender_password)
+        server.send_message(message)
+        
+def get_motivational_message():
+    try:
+        response = requests.get('https://zenquotes.io/api/random')
+        if response.status_code == 200:
+            data = response.json()
+            quote = data[0]['q'] + " - " + data[0]['a']
+            return quote
+        else:
+            print("Failed to fetch motivational message. Status code:", response.status_code)
+            return None
+    except Exception as e:
+        print("Error fetching motivational message:", e)
+        return None
+
 
 
 def set_alarm():
@@ -131,6 +286,8 @@ def set_alarm():
         print("Invalid input. Please enter a valid minute (0-59).")
         minute = int(input("At what minute do you want to set the alarm? Enter minute (0-59): "))
         
+
+        
         
 limit = 3
 api_url = 'https://api.api-ninjas.com/v1/dadjokes?limit={}'.format(limit)
@@ -141,7 +298,7 @@ else:
     print("Error:", response.status_code, response.text)
 
     current_time = datetime.datetime.now()
-    alarm_time = datetime.datetime(current_time.year, current_time.month, current_time.day, hour, minute)
+    alarm_time = datetime.datetime(current_time.year, current_time.month, current_time.day,hour, minute)
     
     time_difference = alarm_time - current_time
     if time_difference.total_seconds() < 0:
@@ -154,63 +311,144 @@ else:
 
 
 if __name__ == "__main__":
-    wish_me()
-    while True:
-        query = take_command().lower()
+    if detect_face():
+        wish_me()
+        while True:
+            query = take_command().lower()
 
-        if 'wikipedia' in query:
-            speak('Searching Wikipedia...')
-            query = query.replace("wikipedia", "")
-            results = wikipedia.summary(query, sentences=2)
-            speak("According to Wikipedia")
-            print(results)
-            speak(results)
+            if 'wikipedia' in query:
+                speak('Searching Wikipedia...')
+                query = query.replace("wikipedia", "")
+                results = wikipedia.summary(query, sentences=2)
+                speak("According to Wikipedia")
+                print(results)
+                speak(results)
 
-        elif 'open youtube' in query:
-            webbrowser.open("youtube.com")
+            elif 'open google' in query:
+                webbrowser.open("http://google.com")
 
-        elif 'open google' in query:
-            webbrowser.open("google.com")
+            elif 'open stack overflow' in query:
+                webbrowser.open("http://stackoverflow.com")
 
-        elif 'open stack overflow' in query:
-            webbrowser.open("stackoverflow.com")
+            elif 'play music' in query:
+                music_dir = 'C:\\Users\\Public\\Music\\Sample Music'  # Adjust to your music directory
+                songs = os.listdir(music_dir)
+                print(songs)
+                os.startfile(os.path.join(music_dir, songs[0]))
 
-        elif 'play music' in query:
-            music_dir = 'C:\\Users\\Public\\Music\\Sample Music'  # Change this to your music directory
-            songs = os.listdir(music_dir)
-            print(songs)
-            os.startfile(os.path.join(music_dir, songs[0]))
+            elif 'the time' in query:
+                str_time = datetime.datetime.now().strftime("%H:%M:%S")
+                speak(f"The time is {str_time}")
 
-        elif 'the time' in query:
-            str_time = datetime.datetime.now().strftime("%H:%M:%S")
-            speak(f"The time is {str_time}")
+            elif 'talk in hindi' in query:
+                # This assumes `engine` and `voices` have been defined and set up elsewhere
+                engine.setProperty('voice', voices[1].id)  # Change to Hindi voice
+                speak("अब मैं हिंदी में बोलूँगा")
 
-        elif 'talk in hindi' in query:
-            engine.setProperty('voice', voices[1].id)  # Change voice to Hindi
-            speak("अब मैं हिंदी में बोलूँगा")
+            elif 'tell me a joke' in query:
+                tell_joke()
 
-        elif 'tell me a joke' in query:
-            tell_joke()
+            elif 'send email' in query:
+                # Assume `send_email` is defined elsewhere
+                speak("Whom do you want to send the email to?")
+                recipient = input("Enter recipient email: ")
+                speak("What is the subject of the email?")
+                subject = take_command()
+                speak("What message would you like to send?")
+                body = take_command()
+                send_email(recipient, subject, body)
+                speak("Email sent successfully!")
 
-        elif 'send whatsapp message' in query:
-            send_whatsapp_message()
+            elif 'send whatsapp message' in query:
+                send_whatsapp_message()
 
-        elif 'set alarm' in query:
-            alarm_thread = threading.Thread(target=set_alarm)
-            alarm_thread.start()
-            
-        elif 'fitness info' in query:
-            get_fitness_info()
-            
-        elif 'crypto price' in query:
-            get_crypto_price()
-            
-        elif 'dadjokes' in query:
-            speak("Here are some dad jokes for you:")
-            print(response.text)
-            speak(response.text)
-            
-        
-        elif 'exit' in query:
-            speak("Exiting boss. Goodbye!")
-            break
+            elif 'set alarm' in query:
+                alarm_thread = threading.Thread(target=set_alarm)
+                alarm_thread.start()
+
+            elif 'fitness info' in query:
+                get_fitness_info()
+
+            elif 'crypto price' in query:
+                get_crypto_price()
+
+            elif 'dadjokes' in query:
+                speak("Here are some dad jokes for you:")
+                speak(response.text)  # Assumes `response` has been defined or obtained from a jokes API
+
+            elif 'add work' in query:
+                speak("What work would you like to add?")
+                work = take_command().lower()
+                speak("At what time would you like to schedule this work?")
+                time = take_command()
+                add_work(work, time)  # Assumes `add_work` is defined elsewhere
+
+            elif 'remove work' in query:
+                speak("What work would you like to remove?")
+                work = take_command().lower()
+                remove_work(work)  # Assumes `remove_work` is defined elsewhere
+
+            elif 'show works' in query:
+                show_works()  # Assumes `show_works` is defined elsewhere
+
+            elif 'manage works' in query:
+                manage_works()  # Assumes `manage_works` is defined elsewhere
+
+            elif 'where am i' in query:
+                location = get_location()  # Assumes `get_location` is defined elsewhere
+                speak(f"You are currently at {location}")
+                # Write address to a file
+                with open("location.txt", "w") as file:
+                    file.write(location)
+
+            elif 'celebrity info' in query:
+                speak("Whose information would you like to know?")
+                name = take_command().lower()
+                celebrity_info = get_celebrity_info(name)  # Assumes `get_celebrity_info` is defined elsewhere
+                if celebrity_info:
+                    print(celebrity_info)
+                    speak(f"Here is some information about {name}: {celebrity_info}")
+                else:
+                    speak("Sorry, I couldn't retrieve celebrity information at the moment.")
+
+            elif 'open youtube' in query:
+                webbrowser.open("http://youtube.com")
+
+            elif 'search and play' in query:
+                speak("What would you like to search and play on YouTube?")
+                search_query = take_command()
+                pywhatkit.playonyt(search_query)
+
+            elif 'motivational message' in query:
+                motivational_message = get_motivational_message()  # Assumes this function is defined elsewhere
+                if motivational_message:
+                    speak(motivational_message)
+                    print(motivational_message)
+                else:
+                    speak("Sorry, I couldn't retrieve a motivational message at the moment.")
+
+            elif 'meme' in query:
+                speak("What would you like the meme to say?")
+                text0 = take_command()
+                speak("What should the second line say?")
+                text1 = take_command()
+                meme_url = generate_meme('129242436', 'YourUsername', 'YourPassword', text0, text1)  # Assumes implementation
+                if meme_url:
+                    speak("Here is your meme!")
+                    webbrowser.open(meme_url)
+                else:
+                    speak("Sorry, I couldn't generate a meme at the moment.")
+
+            elif 'good night' in query:
+                good_night()  # Assumes `good_night` is defined elsewhere
+
+            elif 'change voice' in query:
+                if voices[0].id == engine.getProperty('voice'):
+                    engine.setProperty('voice', voices[1].id)
+                else:
+                    engine.setProperty('voice', voices[0].id)
+
+            elif 'exit' in query:
+                speak("Exiting, boss. Goodbye!")
+                break  # Correct place for the break statement
+
