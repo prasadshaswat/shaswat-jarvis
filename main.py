@@ -254,6 +254,18 @@ def get_exercise_info(exercise_name, muscle):
     except Exception as e:
         print("Error fetching exercise info:", e)
         return None
+    
+#click photo using webcam and save destop
+def click_photo():
+    cap = cv2.VideoCapture(0)
+    ret, frame = cap.read()
+    if ret:
+        cv2.imwrite('C:\\Users\\Public\\Desktop\\webcam.jpg', frame)
+        cap.release()
+        cv2.destroyAllWindows()
+        speak("Photo clicked and saved on desktop.")
+    else:
+        speak("Failed to click photo. Please try again.")
 
 def get_fitness_info():
     speak("What exercise would you like to know about?")
@@ -558,8 +570,11 @@ if __name__ == "__main__":
                 detect_face()
                 speak("Face detected")
                 
+            elif 'click photo' in query:
+                click_photo()
+                speak("Photo clicked and saved on desktop.")
         
             elif 'exit' in query:
                 speak("Exiting, boss. Goodbye!")
-                break  # Correct place for the break statement
+                break 
 
