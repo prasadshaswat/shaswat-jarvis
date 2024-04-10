@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>login</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300&display=swap');
+        *{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Roboto', sans-serif;
+        }
+        body{
+            height: 100vh;
+            display: flex;
+            width: 100%;
+            justify-content:center;
+            align-items: center;
+            flex-direction: column;
+            background: #ff5a5f;
+            color: #fff;
+        }
+        h1{
+            font-family: "popins", sans-serif;
+            color: #fff;
+            font-size: 3rem;
+            margin: 30px 50px;
+        }
+        input{
+            padding: 10px;
+            margin: 10px;
+            border-radius: 5px;
+            border: none;
+            font-size: 1.5rem;
+            font-weight: 900;
+        }
+        input:hover{
+            background: #fff;
+            color: #ff5a5f;
+        }
+        input[type="submit"]{
+            background: #fff;
+            color: #ff5a5f;
+            cursor: pointer;
+        }
+        input[type="submit"]:hover{
+            background: #ff5a5f;
+            color: #fff;
+        }
+        form{
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        input:hover{
+            background: #fff;
+            color: #ff5a5f;
+        }
+        input[type="submit"]{
+            background: #fff;
+            color: #ff5a5f;
+            cursor: pointer;
+        }
+        input[type="submit"]:hover{
+            background: #ff5a5f;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1> User Login</h1>
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <ul>
+                    {% for message in messages %}
+                        <li>{{ message }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+        <form action="{{ url_for('login') }}" method="post">
+            <input type="text" name="username" placeholder="Enter your username" required>
+            <input type="password" name="password" placeholder="Enter your password" required>
+            <input type="submit" value="Login">
+        </form>
+    </div>
+</body>
+</html>
